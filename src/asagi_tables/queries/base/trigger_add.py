@@ -1,22 +1,72 @@
 from . import board as b
+from ...db import qi
+
+board_table = qi(b)
+threads_table = qi(f'{b}_threads')
+images_table = qi(f'{b}_images')
+daily_table = qi(f'{b}_daily')
+users_table = qi(f'{b}_users')
+
+# MySQL procedures
+proc_update_thread = qi(f'update_thread_{b}')
+proc_create_thread = qi(f'create_thread_{b}')
+proc_delete_thread = qi(f'delete_thread_{b}')
+proc_insert_image = qi(f'insert_image_{b}')
+proc_delete_image = qi(f'delete_image_{b}')
+proc_insert_post = qi(f'insert_post_{b}')
+proc_delete_post = qi(f'delete_post_{b}')
+
+# MySQL triggers
+trigger_before_ins = qi(f'before_ins_{b}')
+trigger_after_ins = qi(f'after_ins_{b}')
+trigger_after_del = qi(f'after_del_{b}')
+
+# SQLite triggers
+trigger_before_ins_media_op = qi(f'{b}_before_ins_media_op')
+trigger_before_ins_media_reply = qi(f'{b}_before_ins_media_reply')
+trigger_after_ins_media = qi(f'{b}_after_ins_media')
+trigger_after_ins_op = qi(f'{b}_after_ins_op')
+trigger_after_ins_reply = qi(f'{b}_after_ins_reply')
+trigger_after_ins_reply_ghost = qi(f'{b}_after_ins_reply_ghost')
+trigger_after_del_media = qi(f'{b}_after_del_media')
+trigger_after_del_op = qi(f'{b}_after_del_op')
+trigger_after_del_reply = qi(f'{b}_after_del_reply')
+trigger_after_del_reply_ghost = qi(f'{b}_after_del_reply_ghost')
+
+# PostgreSQL functions
+func_update_thread = qi(f'{b}_update_thread')
+func_create_thread = qi(f'{b}_create_thread')
+func_delete_thread = qi(f'{b}_delete_thread')
+func_insert_image = qi(f'{b}_insert_image')
+func_delete_image = qi(f'{b}_delete_image')
+func_insert_post = qi(f'{b}_insert_post')
+func_delete_post = qi(f'{b}_delete_post')
+func_before_insert = qi(f'{b}_before_insert')
+func_after_insert = qi(f'{b}_after_insert')
+func_after_del = qi(f'{b}_after_del')
+
+# PostgreSQL triggers
+pg_trigger_after_delete = qi(f'{b}_after_delete')
+pg_trigger_before_insert = qi(f'{b}_before_insert')
+pg_trigger_after_insert = qi(f'{b}_after_insert')
 
 mysql = f"""
-drop procedure if exists `update_thread_{b}`;
-drop procedure if exists `create_thread_{b}`;
-drop procedure if exists `delete_thread_{b}`;
-drop procedure if exists `insert_image_{b}`;
-drop procedure if exists `delete_image_{b}`;
-drop procedure if exists `insert_post_{b}`;
-drop procedure if exists `delete_post_{b}`;
+drop procedure if exists {proc_update_thread};
+drop procedure if exists {proc_create_thread};
+drop procedure if exists {proc_delete_thread};
+drop procedure if exists {proc_insert_image};
+drop procedure if exists {proc_delete_image};
+drop procedure if exists {proc_insert_post};
+drop procedure if exists {proc_delete_post};
 
-drop trigger if exists `before_ins_{b}`;
-drop trigger if exists `after_ins_{b}`;
-drop trigger if exists `after_del_{b}`;
+drop trigger if exists {trigger_before_ins};
+drop trigger if exists {trigger_after_ins};
+drop trigger if exists {trigger_after_del};
 
-create procedure if not exists `update_thread_{b}` (ins INT, tnum INT, subnum INT, timestamp INT, media INT, email VARCHAR(100))
+create procedure if not exists {proc_update_thread} (ins INT, tnum INT, subnum INT, timestamp INT, media INT, email VARCHAR(100))
 BEGIN
 	UPDATE
-		`{b}_threads` op
+		{threads_table} op
 	SET
 		op.time_last = IF((ins AND subnum = 0), GREATEST(timestamp, op.time_last), op.time_last),
 		op.time_bump = IF((ins AND subnum = 0), GREATEST(timestamp, op.time_bump), op.time_bump),
@@ -28,21 +78,21 @@ BEGIN
 	WHERE op.thread_num = tnum;
 END;
 
-create procedure if not exists `create_thread_{b}` (num INT, timestamp INT)
+create procedure if not exists {proc_create_thread} (num INT, timestamp INT)
 BEGIN
-	INSERT IGNORE INTO `{b}_threads` VALUES
+	INSERT IGNORE INTO {threads_table} VALUES
 		(num, timestamp, timestamp, timestamp, NULL, NULL, timestamp, 0, 0, 0, 0);
 END;
 
-create procedure if not exists `delete_thread_{b}` (tnum INT)
+create procedure if not exists {proc_delete_thread} (tnum INT)
 BEGIN
-	delete from `{b}_threads` WHERE thread_num = tnum;
+	delete from {threads_table} WHERE thread_num = tnum;
 END;
 
-create procedure if not exists `insert_image_{b}` (n_media_hash VARCHAR(25), n_media VARCHAR(50), n_preview VARCHAR(50), n_op INT)
+create procedure if not exists {proc_insert_image} (n_media_hash VARCHAR(25), n_media VARCHAR(50), n_preview VARCHAR(50), n_op INT)
 BEGIN
 	IF n_op = 1 THEN
-		INSERT INTO `{b}_images` (media_hash, media, preview_op, total)
+		INSERT INTO {images_table} (media_hash, media, preview_op, total)
 		VALUES (n_media_hash, n_media, n_preview, 1)
 		ON DUPLICATE KEY UPDATE
 			media_id = LAST_INSERT_ID(media_id),
@@ -50,7 +100,7 @@ BEGIN
 			preview_op = COALESCE(preview_op, VALUES(preview_op)),
 			media = COALESCE(media, VALUES(media));
 	ELSE
-		INSERT INTO `{b}_images` (media_hash, media, preview_reply, total)
+		INSERT INTO {images_table} (media_hash, media, preview_reply, total)
 		VALUES (n_media_hash, n_media, n_preview, 1)
 		ON DUPLICATE KEY UPDATE
 			media_id = LAST_INSERT_ID(media_id),
@@ -60,48 +110,48 @@ BEGIN
 	END IF;
 END;
 
-create procedure if not exists `delete_image_{b}` (n_media_id INT)
+create procedure if not exists {proc_delete_image} (n_media_id INT)
 BEGIN
-	UPDATE `{b}_images` SET total = (total - 1) WHERE media_id = n_media_id;
+	UPDATE {images_table} SET total = (total - 1) WHERE media_id = n_media_id;
 END;
 
-create trigger `before_ins_{b}` before insert on `{b}`
+create trigger {trigger_before_ins} before insert on {board_table}
 FOR EACH ROW
 BEGIN
 	IF NEW.media_hash IS NOT NULL THEN
-		CALL insert_image_{b}(NEW.media_hash, NEW.media_orig, NEW.preview_orig, NEW.op);
+		CALL {proc_insert_image}(NEW.media_hash, NEW.media_orig, NEW.preview_orig, NEW.op);
 		SET NEW.media_id = LAST_INSERT_ID();
 	END IF;
 END;
 
-create trigger `after_ins_{b}` after insert on `{b}`
+create trigger {trigger_after_ins} after insert on {board_table}
 FOR EACH ROW
 BEGIN
 	IF NEW.op = 1 THEN
-		CALL create_thread_{b}(NEW.num, NEW.timestamp);
+		CALL {proc_create_thread}(NEW.num, NEW.timestamp);
 	END IF;
-	CALL update_thread_{b}(1, NEW.thread_num, NEW.subnum, NEW.timestamp, NEW.media_id, NEW.email);
+	CALL {proc_update_thread}(1, NEW.thread_num, NEW.subnum, NEW.timestamp, NEW.media_id, NEW.email);
 END;
 
-create trigger `after_del_{b}` after delete on `{b}`
+create trigger {trigger_after_del} after delete on {board_table}
 FOR EACH ROW
 BEGIN
-	CALL update_thread_{b}(0, OLD.thread_num, OLD.subnum, OLD.timestamp, OLD.media_id, OLD.email);
+	CALL {proc_update_thread}(0, OLD.thread_num, OLD.subnum, OLD.timestamp, OLD.media_id, OLD.email);
 	IF OLD.op = 1 THEN
-		CALL delete_thread_{b}(OLD.num);
+		CALL {proc_delete_thread}(OLD.num);
 	END IF;
 	IF OLD.media_hash IS NOT NULL THEN
-		CALL delete_image_{b}(OLD.media_id);
+		CALL {proc_delete_image}(OLD.media_id);
 	END IF;
 END;
 """
 
 sqlite = f"""
-CREATE TRIGGER IF NOT EXISTS `{b}_before_ins_media_op`
-BEFORE INSERT ON `{b}` FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS {trigger_before_ins_media_op}
+BEFORE INSERT ON {board_table} FOR EACH ROW
 WHEN NEW.media_hash IS NOT NULL and NEW.op = 1
 BEGIN
-	INSERT INTO `{b}_images` (media_hash, media, preview_op, total)
+	INSERT INTO {images_table} (media_hash, media, preview_op, total)
 	VALUES (NEW.media_hash, NEW.media_orig, NEW.preview_orig, 1)
 	ON CONFLICT (media_hash) DO UPDATE SET
 		total = (total + 1),
@@ -109,11 +159,11 @@ BEGIN
 		media = COALESCE(media, EXCLUDED.media);
 END;
 
-CREATE TRIGGER IF NOT EXISTS `{b}_before_ins_media_reply`
-BEFORE INSERT ON `{b}` FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS {trigger_before_ins_media_reply}
+BEFORE INSERT ON {board_table} FOR EACH ROW
 WHEN NEW.media_hash IS NOT NULL and NEW.op = 0
 BEGIN
-	INSERT INTO `{b}_images` (media_hash, media, preview_reply, total)
+	INSERT INTO {images_table} (media_hash, media, preview_reply, total)
 	VALUES (NEW.media_hash, NEW.media_orig, NEW.preview_orig, 1)
 	ON CONFLICT (media_hash) DO UPDATE SET
 		total = (total + 1),
@@ -121,32 +171,32 @@ BEGIN
 		media = COALESCE(media, EXCLUDED.media);
 END;
 
-CREATE TRIGGER IF NOT EXISTS `{b}_after_ins_media`
-AFTER INSERT ON `{b}` FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS {trigger_after_ins_media}
+AFTER INSERT ON {board_table} FOR EACH ROW
 WHEN NEW.media_hash IS NOT NULL and NEW.media_id = 0
 BEGIN
-	UPDATE `{b}` SET media_id = (
-		SELECT media_id FROM `{b}_images` WHERE media_hash = NEW.media_hash
+	UPDATE {board_table} SET media_id = (
+		SELECT media_id FROM {images_table} WHERE media_hash = NEW.media_hash
 	) WHERE doc_id = NEW.doc_id;
 END;
 
-CREATE TRIGGER IF NOT EXISTS `{b}_after_ins_op`
-AFTER INSERT ON `{b}` FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS {trigger_after_ins_op}
+AFTER INSERT ON {board_table} FOR EACH ROW
 WHEN NEW.op = 1
 BEGIN
-	INSERT OR IGNORE INTO `{b}_threads` (thread_num, time_op, time_last, time_bump, time_last_modified, nimages)
+	INSERT OR IGNORE INTO {threads_table} (thread_num, time_op, time_last, time_bump, time_last_modified, nimages)
 	VALUES (
 		NEW.num, NEW.timestamp, NEW.timestamp, NEW.timestamp, NEW.timestamp,
 		(NEW.media_hash IS NOT NULL)
 	);
 END;
 
-CREATE TRIGGER IF NOT EXISTS `{b}_after_ins_reply`
-AFTER INSERT ON `{b}` FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS {trigger_after_ins_reply}
+AFTER INSERT ON {board_table} FOR EACH ROW
 WHEN NEW.op = 0 AND NEW.subnum = 0
 BEGIN
 	UPDATE
-		`{b}_threads`
+		{threads_table}
 	SET
 		time_last = MAX(NEW.timestamp, time_last),
 		time_bump = CASE WHEN (NEW.email = 'sage') THEN time_bump ELSE MAX(NEW.timestamp, COALESCE(time_bump, 0)) END,
@@ -156,12 +206,12 @@ BEGIN
 	WHERE thread_num = NEW.thread_num;
 END;
 
-CREATE TRIGGER IF NOT EXISTS `{b}_after_ins_reply_ghost`
-AFTER INSERT ON `{b}` FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS {trigger_after_ins_reply_ghost}
+AFTER INSERT ON {board_table} FOR EACH ROW
 WHEN NEW.op = 0 AND NEW.subnum != 0
 BEGIN
 	UPDATE
-		`{b}_threads`
+		{threads_table}
 	SET
 		time_ghost = MAX(NEW.timestamp, COALESCE(time_ghost, 0)),
 		time_ghost_bump = CASE WHEN (NEW.email = 'sage') THEN time_ghost_bump ELSE MAX(NEW.timestamp, COALESCE(time_ghost_bump, 0)) END,
@@ -171,26 +221,26 @@ BEGIN
 	WHERE thread_num = NEW.thread_num;
 END;
 
-CREATE TRIGGER IF NOT EXISTS `{b}_after_del_media`
-AFTER DELETE ON `{b}` FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS {trigger_after_del_media}
+AFTER DELETE ON {board_table} FOR EACH ROW
 WHEN OLD.media_hash IS NOT NULL
 BEGIN
-	UPDATE `{b}_images` SET total = (total - 1) WHERE media_id = OLD.media_id;
+	UPDATE {images_table} SET total = (total - 1) WHERE media_id = OLD.media_id;
 END;
 
-CREATE TRIGGER IF NOT EXISTS `{b}_after_del_op`
-AFTER DELETE ON `{b}` FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS {trigger_after_del_op}
+AFTER DELETE ON {board_table} FOR EACH ROW
 WHEN OLD.op = 1
 BEGIN
-	DELETE FROM `{b}_threads` WHERE thread_num = OLD.num;
+	DELETE FROM {threads_table} WHERE thread_num = OLD.num;
 END;
 
-CREATE TRIGGER IF NOT EXISTS `{b}_after_del_reply`
-AFTER DELETE ON `{b}` FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS {trigger_after_del_reply}
+AFTER DELETE ON {board_table} FOR EACH ROW
 WHEN OLD.op = 0 AND OLD.subnum = 0
 BEGIN
 	UPDATE
-		`{b}_threads`
+		{threads_table}
 	SET
 		time_last_modified = MAX(OLD.timestamp, time_last_modified),
 		nreplies = (nreplies - 1),
@@ -198,12 +248,12 @@ BEGIN
 	WHERE thread_num = OLD.thread_num;
 END;
 
-CREATE TRIGGER IF NOT EXISTS `{b}_after_del_reply_ghost`
-AFTER DELETE ON `{b}` FOR EACH ROW
+CREATE TRIGGER IF NOT EXISTS {trigger_after_del_reply_ghost}
+AFTER DELETE ON {board_table} FOR EACH ROW
 WHEN OLD.op = 0 AND OLD.subnum != 0
 BEGIN
 	UPDATE
-		`{b}_threads`
+		{threads_table}
 	SET
 		time_last_modified = MAX(OLD.timestamp, time_last_modified),
 		nreplies = (nreplies - 1),
@@ -213,95 +263,95 @@ END;
 """
 
 postgresql = f'''
-create or replace function {b}_update_thread(n_row "{b}") RETURNS void AS $$
+create or replace function {func_update_thread}(n_row {board_table}) RETURNS void AS $$
 BEGIN
 	UPDATE
-		{b}_threads AS op
+		{threads_table} AS op
 	SET
 		time_last = (
 			COALESCE(GREATEST(
 				op.time_op,
-				(SELECT MAX(timestamp) FROM {b} re WHERE
+				(SELECT MAX(timestamp) FROM {board_table} re WHERE
 					re.thread_num = $1.thread_num AND re.subnum = 0)
 			), op.time_op)
 		),
 		time_bump = (
 			COALESCE(GREATEST(
 				op.time_op,
-				(SELECT MAX(timestamp) FROM {b} re WHERE
+				(SELECT MAX(timestamp) FROM {board_table} re WHERE
 					re.thread_num = $1.thread_num AND (re.email <> 'sage' OR re.email IS NULL)
 					AND re.subnum = 0)
 			), op.time_op)
 		),
 		time_ghost = (
-			SELECT MAX(timestamp) FROM {b} re WHERE
+			SELECT MAX(timestamp) FROM {board_table} re WHERE
 				re.thread_num = $1.thread_num AND re.subnum <> 0
 		),
 		time_ghost_bump = (
-			SELECT MAX(timestamp) FROM {b} re WHERE
+			SELECT MAX(timestamp) FROM {board_table} re WHERE
 				re.thread_num = $1.thread_num AND re.subnum <> 0 AND (re.email <> 'sage' OR
 					re.email IS NULL)
 		),
 		time_last_modified = (
 			COALESCE(GREATEST(
 				op.time_op,
-				(SELECT GREATEST(MAX(timestamp), MAX(timestamp_expired)) FROM {b} re WHERE
+				(SELECT GREATEST(MAX(timestamp), MAX(timestamp_expired)) FROM {board_table} re WHERE
 					re.thread_num = $1.thread_num)
 			), op.time_op)
 		),
 		nreplies = (
-			SELECT COUNT(*) FROM {b} re WHERE
+			SELECT COUNT(*) FROM {board_table} re WHERE
 				re.thread_num = $1.thread_num
 		),
 		nimages = (
-			SELECT COUNT(media_hash) FROM {b} re WHERE
+			SELECT COUNT(media_hash) FROM {board_table} re WHERE
 				re.thread_num = $1.thread_num
 		)
 		WHERE op.thread_num = $1.thread_num;
 END;
 $$ LANGUAGE plpgsql;
 
-create or replace function {b}_create_thread(n_row "{b}") RETURNS void AS $$
+create or replace function {func_create_thread}(n_row {board_table}) RETURNS void AS $$
 BEGIN
 	IF n_row.op = false THEN RETURN; END IF;
-	INSERT INTO {b}_threads SELECT $1.num, $1.timestamp, $1.timestamp,
-			$1.timestamp, NULL, NULL, $1.timestamp, 0, 0, false, false WHERE NOT EXISTS (SELECT 1 FROM {b}_threads WHERE thread_num=$1.num);
+	INSERT INTO {threads_table} SELECT $1.num, $1.timestamp, $1.timestamp,
+			$1.timestamp, NULL, NULL, $1.timestamp, 0, 0, false, false WHERE NOT EXISTS (SELECT 1 FROM {threads_table} WHERE thread_num=$1.num);
 	RETURN;
 END;
 $$ LANGUAGE plpgsql;
 
-create or replace function {b}_delete_thread(n_parent integer) RETURNS void AS $$
+create or replace function {func_delete_thread}(n_parent integer) RETURNS void AS $$
 BEGIN
-	delete from {b}_threads WHERE thread_num = n_parent;
+	delete from {threads_table} WHERE thread_num = n_parent;
 	RETURN;
 END;
 $$ LANGUAGE plpgsql;
 
-create or replace function {b}_insert_image(n_row "{b}") RETURNS integer AS $$
+create or replace function {func_insert_image}(n_row {board_table}) RETURNS integer AS $$
 DECLARE
 		img_id INTEGER;
 BEGIN
-	INSERT INTO {b}_images
+	INSERT INTO {images_table}
 		(media_hash, media, preview_op, preview_reply, total)
 		SELECT n_row.media_hash, n_row.media_orig, NULL, NULL, 0
-		WHERE NOT EXISTS (SELECT 1 FROM {b}_images WHERE media_hash = n_row.media_hash);
+		WHERE NOT EXISTS (SELECT 1 FROM {images_table} WHERE media_hash = n_row.media_hash);
 
 	IF n_row.op = true THEN
-		UPDATE {b}_images SET total = (total + 1), preview_op = COALESCE(preview_op, n_row.preview_orig) WHERE media_hash = n_row.media_hash RETURNING media_id INTO img_id;
+		UPDATE {images_table} SET total = (total + 1), preview_op = COALESCE(preview_op, n_row.preview_orig) WHERE media_hash = n_row.media_hash RETURNING media_id INTO img_id;
 	ELSE
-		UPDATE {b}_images SET total = (total + 1), preview_reply = COALESCE(preview_reply, n_row.preview_orig) WHERE media_hash = n_row.media_hash RETURNING media_id INTO img_id;
+		UPDATE {images_table} SET total = (total + 1), preview_reply = COALESCE(preview_reply, n_row.preview_orig) WHERE media_hash = n_row.media_hash RETURNING media_id INTO img_id;
 	END IF;
 	RETURN img_id;
 END;
 $$ LANGUAGE plpgsql;
 
-create or replace function {b}_delete_image(n_media_id integer) RETURNS void AS $$
+create or replace function {func_delete_image}(n_media_id integer) RETURNS void AS $$
 BEGIN
-	UPDATE {b}_images SET total = (total - 1) WHERE id = n_media_id;
+	UPDATE {images_table} SET total = (total - 1) WHERE id = n_media_id;
 END;
 $$ LANGUAGE plpgsql;
 
-create or replace function {b}_insert_post(n_row "{b}") RETURNS void AS $$
+create or replace function {func_insert_post}(n_row {board_table}) RETURNS void AS $$
 DECLARE
 	d_day integer;
 	d_image integer;
@@ -317,32 +367,32 @@ BEGIN
 	d_trip := CASE WHEN $1.trip IS NOT NULL THEN 1 ELSE 0 END;
 	d_name := CASE WHEN COALESCE($1.name <> 'Anonymous' AND $1.trip IS NULL, TRUE) THEN 1 ELSE 0 END;
 
-	INSERT INTO {b}_daily
+	INSERT INTO {daily_table}
 		SELECT d_day, 0, 0, 0, 0, 0, 0
-		WHERE NOT EXISTS (SELECT 1 FROM {b}_daily WHERE day = d_day);
+		WHERE NOT EXISTS (SELECT 1 FROM {daily_table} WHERE day = d_day);
 
-	UPDATE {b}_daily SET posts=posts+1, images=images+d_image,
+	UPDATE {daily_table} SET posts=posts+1, images=images+d_image,
 		sage=sage+d_sage, anons=anons+d_anon, trips=trips+d_trip,
 		names=names+d_name WHERE day = d_day;
 
-	IF (SELECT trip FROM {b}_users WHERE trip = $1.trip) IS NOT NULL THEN
-		UPDATE {b}_users SET postcount=postcount+1,
+	IF (SELECT trip FROM {users_table} WHERE trip = $1.trip) IS NOT NULL THEN
+		UPDATE {users_table} SET postcount=postcount+1,
 			firstseen = LEAST($1.timestamp, firstseen),
 			name = COALESCE($1.name, '')
 			WHERE trip = $1.trip;
 	ELSE
-		INSERT INTO {b}_users (name, trip, firstseen, postcount)
+		INSERT INTO {users_table} (name, trip, firstseen, postcount)
 			SELECT COALESCE($1.name,''), COALESCE($1.trip,''), $1.timestamp, 0
-			WHERE NOT EXISTS (SELECT 1 FROM {b}_users WHERE name = COALESCE($1.name,'') AND trip = COALESCE($1.trip,''));
+			WHERE NOT EXISTS (SELECT 1 FROM {users_table} WHERE name = COALESCE($1.name,'') AND trip = COALESCE($1.trip,''));
 
-		UPDATE {b}_users SET postcount=postcount+1,
+		UPDATE {users_table} SET postcount=postcount+1,
 			firstseen = LEAST($1.timestamp, firstseen)
 			WHERE name = COALESCE($1.name,'') AND trip = COALESCE($1.trip,'');
 	END IF;
 END;
 $$ LANGUAGE plpgsql;
 
-create or replace function {b}_delete_post(n_row "{b}") RETURNS void AS $$
+create or replace function {func_delete_post}(n_row {board_table}) RETURNS void AS $$
 DECLARE
 	d_day integer;
 	d_image integer;
@@ -358,63 +408,63 @@ BEGIN
 	d_trip := CASE WHEN $1.trip IS NOT NULL THEN 1 ELSE 0 END;
 	d_name := CASE WHEN COALESCE($1.name <> 'Anonymous' AND $1.trip IS NULL, TRUE) THEN 1 ELSE 0 END;
 
-	UPDATE {b}_daily SET posts=posts-1, images=images-d_image,
+	UPDATE {daily_table} SET posts=posts-1, images=images-d_image,
 		sage=sage-d_sage, anons=anons-d_anon, trips=trips-d_trip,
 		names=names-d_name WHERE day = d_day;
 
-	IF (SELECT trip FROM {b}_users WHERE trip = $1.trip) IS NOT NULL THEN
-		UPDATE {b}_users SET postcount=postcount-1,
+	IF (SELECT trip FROM {users_table} WHERE trip = $1.trip) IS NOT NULL THEN
+		UPDATE {users_table} SET postcount=postcount-1,
 			firstseen = LEAST($1.timestamp, firstseen)
 			WHERE trip = $1.trip;
 	ELSE
-		UPDATE {b}_users SET postcount=postcount-1,
+		UPDATE {users_table} SET postcount=postcount-1,
 			firstseen = LEAST($1.timestamp, firstseen)
 			WHERE (name = $1.name OR $1.name IS NULL) AND (trip = $1.trip OR $1.trip IS NULL);
 	END IF;
 END;
 $$ LANGUAGE plpgsql;
 
-create or replace function {b}_before_insert() RETURNS trigger AS $$
+create or replace function {func_before_insert}() RETURNS trigger AS $$
 BEGIN
 	IF NEW.media_hash IS NOT NULL THEN
-		SELECT {b}_insert_image(NEW) INTO NEW.media_id;
+		SELECT {func_insert_image}(NEW) INTO NEW.media_id;
 	END IF;
 	RETURN NEW;
 END
 $$ LANGUAGE plpgsql;
 
-create or replace function {b}_after_insert() RETURNS trigger AS $$
+create or replace function {func_after_insert}() RETURNS trigger AS $$
 BEGIN
 	IF NEW.op = true THEN
-		PERFORM {b}_create_thread(NEW);
+		PERFORM {func_create_thread}(NEW);
 	END IF;
-	PERFORM {b}_update_thread(NEW);
-	PERFORM {b}_insert_post(NEW);
+	PERFORM {func_update_thread}(NEW);
+	PERFORM {func_insert_post}(NEW);
 	RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
-create or replace function {b}_after_del() RETURNS trigger AS $$
+create or replace function {func_after_del}() RETURNS trigger AS $$
 BEGIN
-	PERFORM {b}_update_thread(OLD);
+	PERFORM {func_update_thread}(OLD);
 	IF OLD.op = true THEN
-		PERFORM {b}_delete_thread(OLD.num);
+		PERFORM {func_delete_thread}(OLD.num);
 	END IF;
-	PERFORM {b}_delete_post(OLD);
+	PERFORM {func_delete_post}(OLD);
 	IF OLD.media_hash IS NOT NULL THEN
-		PERFORM {b}_delete_image(OLD.media_id);
+		PERFORM {func_delete_image}(OLD.media_id);
 	END IF;
 	RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
 
-CREATE TRIGGER {b}_after_delete AFTER DELETE ON {b}
-	FOR EACH ROW EXECUTE PROCEDURE {b}_after_del();
+CREATE TRIGGER {pg_trigger_after_delete} AFTER DELETE ON {board_table}
+	FOR EACH ROW EXECUTE PROCEDURE {func_after_del}();
 
-CREATE TRIGGER {b}_before_insert BEFORE INSERT ON {b}
-	FOR EACH ROW EXECUTE PROCEDURE {b}_before_insert();
+CREATE TRIGGER {pg_trigger_before_insert} BEFORE INSERT ON {board_table}
+	FOR EACH ROW EXECUTE PROCEDURE {func_before_insert}();
 
-CREATE TRIGGER {b}_after_insert AFTER INSERT ON {b}
-	FOR EACH ROW EXECUTE PROCEDURE {b}_after_insert();
+CREATE TRIGGER {pg_trigger_after_insert} AFTER INSERT ON {board_table}
+	FOR EACH ROW EXECUTE PROCEDURE {func_after_insert}();
 '''

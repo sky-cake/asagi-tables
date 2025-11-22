@@ -1,7 +1,11 @@
 from . import board as b
+from ...db import qi
 
-mysql = f'alter table {b} drop foreign key {b}_media_id_fk;'
+board_table = qi(b)
+fk_constraint = qi(f'{b}_media_id_fk')
 
-sqlite = f''
+mysql = f'alter table {board_table} drop foreign key {fk_constraint};'
 
-postgresql = f"alter table {b} drop constraint {b}_media_id_fk;"
+sqlite = ''
+
+postgresql = f"alter table {board_table} drop constraint {fk_constraint};"

@@ -3,15 +3,19 @@ from . import (
 	map_join_index,
 	TI,
 )
+from ...db import qi
 
 def drop_index_mysql(table: str, index: TI) -> str:
-	return f'drop index `{index.name}` on `{b}_{table}`;'
+	return f'drop index {index.name} on {qi(f"{b}_{table}")};'
 
 def drop_index_sqlite(table: str, index: TI) -> str:
-	return f'drop index if exists `{b}_{table}_{index.name}`;'
+	return f'drop index if exists {qi(f"{b}_{table}_{index.name}")};'
 
-mysql = map_join_index(drop_index_mysql)
+def mysql(*args) -> str:
+	return map_join_index(drop_index_mysql)
 
-sqlite = map_join_index(drop_index_sqlite)
+def sqlite(*args) -> str:
+	return map_join_index(drop_index_sqlite)
 
-postgresql = sqlite.replace('`', '"')
+def postgresql(*args) -> str:
+	return sqlite()

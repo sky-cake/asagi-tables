@@ -23,3 +23,4 @@ Phg = _db_mod.Phg
 on_conflict = _db_mod.on_conflict
 query_tuple = _db_mod.query_tuple
 close_pool = _db_mod.close_pool
+qi = _db_mod.quote_identifier

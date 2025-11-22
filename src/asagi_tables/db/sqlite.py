@@ -43,3 +43,6 @@ class Phg(BasePlaceHolderGen):
 	
 	def qty(self, count: int=1) -> str:
 		return ','.join('?' for _ in range(count))
+
+def quote_identifier(name: str) -> str:
+	return f'`{name}`'

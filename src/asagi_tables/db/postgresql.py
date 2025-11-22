@@ -50,3 +50,6 @@ class Phg(BasePlaceHolderGen):
 		start = self.counter + 1
 		self.counter += count
 		return ','.join(f'${i}' for i in range(start, start+count))
+
+def quote_identifier(name: str) -> str:
+	return f'"{name}"'

@@ -1,6 +1,7 @@
 from . import (
 	board as b,
 )
+from ...db import qi
 
 '''
 Upgraded the number of characters in board_images from 20 to 25
@@ -15,9 +16,9 @@ def mysql(filter_tables: set[str] | None = None) -> str:
 	
 	parts = []
 	if 'deleted' in filter_tables:
-		parts.append(f'create table if not exists `{b}_deleted` like `{b}`;')
+		parts.append(f'create table if not exists {qi(f"{b}_deleted")} like {qi(b)};')
 	if 'threads' in filter_tables:
-		parts.append(f"""create table if not exists `{b}_threads` (
+		parts.append(f"""create table if not exists {qi(f"{b}_threads")} (
 	`thread_num` int unsigned not null,
 	`time_op` int unsigned not null,
 	`time_last` int unsigned not null,
@@ -33,7 +34,7 @@ def mysql(filter_tables: set[str] | None = None) -> str:
 	primary key (`thread_num`)
 ) ENGINE=InnoDB CHARSET=utf8mb4;""")
 	if 'images' in filter_tables:
-		parts.append(f"""create table if not exists `{b}_images` (
+		parts.append(f"""create table if not exists {qi(f"{b}_images")} (
 	`media_id` int unsigned not null auto_increment,
 	`media_hash` varchar(25) not null,
 	`media` varchar(25),
@@ -45,7 +46,7 @@ def mysql(filter_tables: set[str] | None = None) -> str:
 	primary key (`media_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=ascii COLLATE=ascii_bin;""")
 	if 'users' in filter_tables:
-		parts.append(f"""create table if not exists `{b}_users` (
+		parts.append(f"""create table if not exists {qi(f"{b}_users")} (
 	`user_id` int unsigned not null auto_increment,
 	`name` varchar(100) not null default '',
 	`trip` varchar(25) not null default '',
@@ -55,7 +56,7 @@ def mysql(filter_tables: set[str] | None = None) -> str:
 	primary key (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;""")
 	if 'daily' in filter_tables:
-		parts.append(f"""create table if not exists `{b}_daily` (
+		parts.append(f"""create table if not exists {qi(f"{b}_daily")} (
 	`day` int(10) unsigned not null,
 	`posts` int(10) unsigned not null,
 	`images` int(10) unsigned not null,
@@ -74,7 +75,7 @@ def sqlite(filter_tables: set[str] | None = None) -> str:
 	
 	parts = []
 	if 'deleted' in filter_tables:
-		parts.append(f"""create table if not exists `{b}_deleted` (
+		parts.append(f"""create table if not exists {qi(f"{b}_deleted")} (
 	doc_id integer not null primary key autoincrement,
 	media_id integer not null default 0,
 	poster_ip text not null default 0,
@@ -109,7 +110,7 @@ def sqlite(filter_tables: set[str] | None = None) -> str:
 	exif text
 );""")
 	if 'threads' in filter_tables:
-		parts.append(f"""create table if not exists `{b}_threads` (
+		parts.append(f"""create table if not exists {qi(f"{b}_threads")} (
 	thread_num integer not null primary key,
 	time_op integer not null default 0,
 	time_last integer not null default 0,
@@ -123,7 +124,7 @@ def sqlite(filter_tables: set[str] | None = None) -> str:
 	locked integer not null default 0
 );""")
 	if 'images' in filter_tables:
-		parts.append(f"""create table if not exists `{b}_images` (
+		parts.append(f"""create table if not exists {qi(f"{b}_images")} (
 	media_id integer not null primary key autoincrement,
 	media_hash text not null,
 	media text,
@@ -133,7 +134,7 @@ def sqlite(filter_tables: set[str] | None = None) -> str:
 	banned integer not null default 0
 );""")
 	if 'users' in filter_tables:
-		parts.append(f"""create table if not exists `{b}_users` (
+		parts.append(f"""create table if not exists {qi(f"{b}_users")} (
 	user_id integer not null primary key autoincrement,
 	name text not null,
 	trip text not null,
@@ -141,7 +142,7 @@ def sqlite(filter_tables: set[str] | None = None) -> str:
 	postcount integer not null
 );""")
 	if 'daily' in filter_tables:
-		parts.append(f"""create table if not exists `{b}_daily` (
+		parts.append(f"""create table if not exists {qi(f"{b}_daily")} (
 	day integer not null primary key,
 	posts integer not null default 0,
 	images integer not null default 0,
@@ -158,7 +159,7 @@ def postgresql(filter_tables: set[str] | None = None) -> str:
 	
 	parts = []
 	if 'threads' in filter_tables:
-		parts.append(f'''create table if not exists "{b}_threads" (
+		parts.append(f'''create table if not exists {qi(f"{b}_threads")} (
 	thread_num integer not null,
 	time_op integer not null,
 	time_last integer not null,
@@ -174,7 +175,7 @@ def postgresql(filter_tables: set[str] | None = None) -> str:
 	primary key (thread_num)
 );''')
 	if 'images' in filter_tables:
-		parts.append(f'''create table if not exists "{b}_images" (
+		parts.append(f'''create table if not exists {qi(f"{b}_images")} (
 	media_id serial not null,
 	media_hash character varying(25) not null,
 	media character varying(25),
@@ -187,7 +188,7 @@ def postgresql(filter_tables: set[str] | None = None) -> str:
 	unique (media_hash)
 );''')
 	if 'users' in filter_tables:
-		parts.append(f'''create table if not exists "{b}_users" (
+		parts.append(f'''create table if not exists {qi(f"{b}_users")} (
 	user_id serial not null,
 	name character varying(100) not null default '',
 	trip character varying(25) not null default '',
@@ -198,7 +199,7 @@ def postgresql(filter_tables: set[str] | None = None) -> str:
 	unique (name, trip)
 );''')
 	if 'daily' in filter_tables:
-		parts.append(f'''create table if not exists "{b}_daily" (
+		parts.append(f'''create table if not exists {qi(f"{b}_daily")} (
 	day integer not null,
 	posts integer not null,
 	images integer not null,
@@ -210,7 +211,7 @@ def postgresql(filter_tables: set[str] | None = None) -> str:
 	primary key (day)
 );''')
 	if 'deleted' in filter_tables:
-		parts.append(f'''create table if not exists "{b}_deleted" (
-	like "{b}" including all
+		parts.append(f'''create table if not exists {qi(f"{b}_deleted")} (
+	like {qi(b)} including all
 );''')
 	return '\n\n'.join(parts)

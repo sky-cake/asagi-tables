@@ -2,6 +2,9 @@ from typing import Callable
 from . import (
 	board as b,
 )
+from ...db import qi
+
+board_table = qi(b)
 
 def nl_map(keys: tuple[str], fn: Callable):
 	return '\n'.join(fn(k) for k in keys)
@@ -18,10 +21,10 @@ mysql_functions = (
 	'insert_image',
 	'delete_image',
 )
-mysql =	nl_map(mysql_triggers,
-	lambda t: f'drop trigger if exists `{t}_{b}`;'
+mysql = nl_map(mysql_triggers,
+	lambda t: f'drop trigger if exists {qi(f"{t}_{b}")};'
 ) + '\n' + nl_map(mysql_functions,
-	lambda f: f'drop procedure if exists `{f}_{b}`;'
+	lambda f: f'drop procedure if exists {qi(f"{f}_{b}")};'
 )
 
 sqlite_triggers = (
@@ -36,7 +39,7 @@ sqlite_triggers = (
 	'after_del_reply',
 	'after_del_reply_ghost',
 )
-sqlite = nl_map(sqlite_triggers, lambda t: f'drop trigger if exists `{b}_{t}`;')
+sqlite = nl_map(sqlite_triggers, lambda t: f'drop trigger if exists {qi(f"{b}_{t}")};')
 
 postgresql_triggers = (
 	'after_delete',
@@ -56,7 +59,7 @@ postgresql_functions = (
 	'after_del',
 )
 postgresql = nl_map(postgresql_triggers,
-	lambda t: f'drop trigger if exists {b}_{t} on {b};'
+	lambda t: f'drop trigger if exists {qi(f"{b}_{t}")} on {board_table};'
 ) + '\n' + nl_map(postgresql_functions,
-	lambda f: f'drop function if exists {b}_{f};'
+	lambda f: f'drop function if exists {qi(f"{b}_{f}")};'
 )

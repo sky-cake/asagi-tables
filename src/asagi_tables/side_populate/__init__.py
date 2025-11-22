@@ -4,7 +4,7 @@ from typing import AsyncGenerator, Generator, Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 
-from ..db import Phg, on_conflict, query_tuple, db_type
+from ..db import Phg, on_conflict, query_tuple, qi
 
 BATCH_POSTS = 10000
 BATCH_THREADS = 4000
@@ -102,19 +102,9 @@ def thread_row_gen(threads: dict[int, Thread]) -> Generator:
 	for batch in batched(threads.items(), BATCH_THREADS):
 		yield [thread.get_row(threadnum) for threadnum, thread in batch]
 
-def _quote_identifier(name: str) -> str:
-	"""Quote identifier based on database type"""
-	match db_type:
-		case 'mysql' | 'sqlite':
-			return f'`{name}`'
-		case 'postgresql':
-			return f'"{name}"'
-		case _:
-			return name
-
 async def board_rows_gen(board: str, after_doc_id: int=0) -> AsyncGenerator:
 	batch_size = BATCH_POSTS
-	quoted_board = _quote_identifier(board)
+	quoted_board = qi(board)
 
 	sql = f"""
 	select {','.join(post_columns)}
@@ -142,7 +132,7 @@ async def increment_threads(board: str, rows: list[tuple]):
 		for _ in range(len(rows))
 	)
 	params = tuple(cell for row in rows for cell in row)
-	quoted_table = _quote_identifier(f'{board}_{SideTable.threads}')
+	quoted_table = qi(f'{board}_{SideTable.threads}')
 	sql = f"""insert into {quoted_table}({",".join(thread_columns)})
 	values {ph}
 	{on_conflict('thread_num')}
@@ -162,7 +152,7 @@ async def insert_sidetable_fresh(sidetable: SideTable, columns: Iterable[str], b
 		for _ in range(len(rows))
 	)
 	params = tuple(cell for row in rows for cell in row)
-	quoted_table = _quote_identifier(f'{board}_{sidetable}')
+	quoted_table = qi(f'{board}_{sidetable}')
 	sql = f'insert into {quoted_table}({",".join(columns)}) values {ph};'
 	await query_tuple(sql, params)
 

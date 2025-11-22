@@ -1,7 +1,11 @@
 from . import board as b
+from ...db import qi
+
+board_table = qi(b)
+images_table = qi(f'{b}_images')
 
 mysql = f"""
-create table if not exists `{b}` (
+create table if not exists {board_table} (
 	`doc_id` int unsigned not null auto_increment,
 	`media_id` int unsigned not null default 0,
 	`poster_ip` decimal(39,0) unsigned not null default 0,
@@ -39,7 +43,7 @@ create table if not exists `{b}` (
 """
 
 sqlite = f"""
-create table if not exists `{b}` (
+create table if not exists {board_table} (
 	`doc_id` integer not null primary key autoincrement,
 	`media_id` integer not null default 0,
 	`poster_ip` text not null default 0,
@@ -76,7 +80,7 @@ create table if not exists `{b}` (
 """
 
 postgresql = f'''
-create table {b} (
+create table {board_table} (
 	doc_id SERIAL not null,
 	media_id integer,
 	poster_ip numeric(39,0) not null default 0,
@@ -84,8 +88,8 @@ create table {b} (
 	subnum integer not null,
 	thread_num integer not null default 0,
 	op boolean not null default false,
-	"timestamp" integer not null,
-	"timestamp_expired" integer not null,
+	timestamp integer not null,
+	timestamp_expired integer not null,
 	preview_orig character varying(20),
 	preview_w integer not null default 0,
 	preview_h integer not null default 0,
@@ -111,7 +115,7 @@ create table {b} (
 	exif text,
 
 	primary key (doc_id),
-	foreign key (media_id) references {b}_images(media_id),
+	foreign key (media_id) references {images_table}(media_id),
 	unique (num, subnum)
 );
 '''

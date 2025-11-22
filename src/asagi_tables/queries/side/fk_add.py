@@ -1,7 +1,12 @@
 from . import board as b
+from ...db import qi
 
-mysql = f'alter table {b} add constraint {b}_media_id_fk foreign key (media_id) references {b}_images(media_id);'
+board_table = qi(b)
+images_table = qi(f'{b}_images')
+fk_constraint = qi(f'{b}_media_id_fk')
 
-sqlite = f''
+mysql = f'alter table {board_table} add constraint {fk_constraint} foreign key (media_id) references {images_table}(media_id);'
 
-postgresql = f"alter table {b} add constraint {b}_media_id_fk foreign key (media_id) references {b}_images(media_id);"
+sqlite = ''
+
+postgresql = f"alter table {board_table} add constraint {fk_constraint} foreign key (media_id) references {images_table}(media_id);"

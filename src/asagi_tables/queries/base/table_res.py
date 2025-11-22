@@ -2,8 +2,13 @@ from . import (
 	board as b,
 	backup_suffix as suf,
 )
-mysql = f"rename table `{b}_{suf}` to `{b}`;"
+from ...db import qi
 
-sqlite = f"alter table `{b}_{suf}` rename to `{b}`;"
+board_table = qi(b)
+backup_table = qi(f'{b}_{suf}')
 
-postgresql = f'alter table if exists "{b}_{suf}" rename to "{b}";'
+mysql = f"rename table {backup_table} to {board_table};"
+
+sqlite = f"alter table {backup_table} rename to {board_table};"
+
+postgresql = f'alter table if exists {backup_table} rename to {board_table};'
