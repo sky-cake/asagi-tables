@@ -30,9 +30,11 @@ table_indexes = dict(
 	),
 )
 
-def map_join_table(fn: Callable[[str], str]):
+def map_join_table(fn: Callable[[str], str], filter_tables: set[str] | None = None):
+	if filter_tables is None:
+		filter_tables = set(sidetables)
 	return '\n'.join(
-		fn(st) for st in sidetables
+		fn(st) for st in sidetables if st in filter_tables
 	)
 
 def map_join_index(fn: Callable[[str, TI], str]):

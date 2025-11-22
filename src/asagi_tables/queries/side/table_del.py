@@ -3,10 +3,14 @@ from . import (
 	map_join_table,
 )
 
-mysql = map_join_table(
-	lambda table: f'drop table if exists `{b}_{table}`;'
-)
+def drop_table_stmt(table: str) -> str:
+	return f'drop table if exists `{b}_{table}`;'
 
-sqlite = mysql
+def mysql(filter_tables: set[str] | None = None) -> str:
+	return map_join_table(drop_table_stmt, filter_tables)
 
-postgresql = mysql.replace('`', '"')
+def sqlite(filter_tables: set[str] | None = None) -> str:
+	return mysql(filter_tables)
+
+def postgresql(filter_tables: set[str] | None = None) -> str:
+	return mysql(filter_tables).replace('`', '"')

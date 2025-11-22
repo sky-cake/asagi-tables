@@ -75,5 +75,5 @@ docstring-code-line-length = 65535
 testpaths = [
 	'tests',
 ]
-pythonpath = 'src/asagi_tables'
+pythonpath = ['src']
 addopts = '--capture=no'

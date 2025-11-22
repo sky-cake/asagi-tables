@@ -18,11 +18,15 @@ def get_package_path() -> str:
 	return '.'.join(levels)
 
 PKG_NAME = get_package_path()
-def get_template(db_type: str, table_type: str, module_name: str) -> str:
+def get_template(db_type: str, table_type: str, module_name: str, side_tables: set[str] | None = None) -> str:
 	mod_path = f'{PKG_NAME}.{table_type}.{module_name}'
 	try:
 		module = import_module(mod_path)
-		template = getattr(module, db_type).strip()
+		template_obj = getattr(module, db_type)
+		if callable(template_obj):
+			template = template_obj(side_tables).strip()
+		else:
+			template = template_obj.strip()
 	except Exception as e:
 		print(e)
 		template = ''

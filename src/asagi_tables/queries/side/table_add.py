@@ -9,10 +9,15 @@ media_orig and preview_orig entries from /news/
 	1658159465182541s.jpg
 '''
 
-mysql = f"""
-create table if not exists `{b}_deleted` like `{b}`;
-
-create table if not exists `{b}_threads` (
+def mysql(filter_tables: set[str] | None = None) -> str:
+	if filter_tables is None:
+		filter_tables = {'daily', 'deleted', 'images', 'threads', 'users'}
+	
+	parts = []
+	if 'deleted' in filter_tables:
+		parts.append(f'create table if not exists `{b}_deleted` like `{b}`;')
+	if 'threads' in filter_tables:
+		parts.append(f"""create table if not exists `{b}_threads` (
 	`thread_num` int unsigned not null,
 	`time_op` int unsigned not null,
 	`time_last` int unsigned not null,
@@ -26,9 +31,9 @@ create table if not exists `{b}_threads` (
 	`locked` bool not null default 0,
 
 	primary key (`thread_num`)
-) ENGINE=InnoDB CHARSET=utf8mb4;
-
-create table if not exists `{b}_images` (
+) ENGINE=InnoDB CHARSET=utf8mb4;""")
+	if 'images' in filter_tables:
+		parts.append(f"""create table if not exists `{b}_images` (
 	`media_id` int unsigned not null auto_increment,
 	`media_hash` varchar(25) not null,
 	`media` varchar(25),
@@ -38,9 +43,9 @@ create table if not exists `{b}_images` (
 	`banned` smallint unsigned not null default 0,
 
 	primary key (`media_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=ascii COLLATE=ascii_bin;
-
-create table if not exists `{b}_users` (
+) ENGINE=InnoDB DEFAULT CHARSET=ascii COLLATE=ascii_bin;""")
+	if 'users' in filter_tables:
+		parts.append(f"""create table if not exists `{b}_users` (
 	`user_id` int unsigned not null auto_increment,
 	`name` varchar(100) not null default '',
 	`trip` varchar(25) not null default '',
@@ -48,9 +53,9 @@ create table if not exists `{b}_users` (
 	`postcount` int(11) not null,
 
 	primary key (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-create table if not exists `{b}_daily` (
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;""")
+	if 'daily' in filter_tables:
+		parts.append(f"""create table if not exists `{b}_daily` (
 	`day` int(10) unsigned not null,
 	`posts` int(10) unsigned not null,
 	`images` int(10) unsigned not null,
@@ -60,11 +65,16 @@ create table if not exists `{b}_daily` (
 	`names` int(10) unsigned not null,
 
 	primary key (`day`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-"""
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;""")
+	return '\n\n'.join(parts)
 
-sqlite = f"""
-create table if not exists `{b}_deleted` (
+def sqlite(filter_tables: set[str] | None = None) -> str:
+	if filter_tables is None:
+		filter_tables = {'daily', 'deleted', 'images', 'threads', 'users'}
+	
+	parts = []
+	if 'deleted' in filter_tables:
+		parts.append(f"""create table if not exists `{b}_deleted` (
 	doc_id integer not null primary key autoincrement,
 	media_id integer not null default 0,
 	poster_ip text not null default 0,
@@ -97,9 +107,9 @@ create table if not exists `{b}_deleted` (
 	poster_hash text,
 	poster_country text,
 	exif text
-);
-
-create table if not exists `{b}_threads` (
+);""")
+	if 'threads' in filter_tables:
+		parts.append(f"""create table if not exists `{b}_threads` (
 	thread_num integer not null primary key,
 	time_op integer not null default 0,
 	time_last integer not null default 0,
@@ -111,9 +121,9 @@ create table if not exists `{b}_threads` (
 	nimages integer not null default 0,
 	sticky integer not null default 0,
 	locked integer not null default 0
-);
-
-create table if not exists `{b}_images` (
+);""")
+	if 'images' in filter_tables:
+		parts.append(f"""create table if not exists `{b}_images` (
 	media_id integer not null primary key autoincrement,
 	media_hash text not null,
 	media text,
@@ -121,17 +131,17 @@ create table if not exists `{b}_images` (
 	preview_reply text,
 	total integer not null default 0,
 	banned integer not null default 0
-);
-
-create table if not exists `{b}_users` (
+);""")
+	if 'users' in filter_tables:
+		parts.append(f"""create table if not exists `{b}_users` (
 	user_id integer not null primary key autoincrement,
 	name text not null,
 	trip text not null,
 	firstseen integer not null,
 	postcount integer not null
-);
-
-create table if not exists `{b}_daily` (
+);""")
+	if 'daily' in filter_tables:
+		parts.append(f"""create table if not exists `{b}_daily` (
 	day integer not null primary key,
 	posts integer not null default 0,
 	images integer not null default 0,
@@ -139,11 +149,16 @@ create table if not exists `{b}_daily` (
 	anons integer not null default 0,
 	trips integer not null default 0,
 	names integer not null default 0
-);
-"""
+);""")
+	return '\n\n'.join(parts)
 
-postgresql = f'''
-create table if not exists {b}_threads (
+def postgresql(filter_tables: set[str] | None = None) -> str:
+	if filter_tables is None:
+		filter_tables = {'daily', 'deleted', 'images', 'threads', 'users'}
+	
+	parts = []
+	if 'threads' in filter_tables:
+		parts.append(f'''create table if not exists "{b}_threads" (
 	thread_num integer not null,
 	time_op integer not null,
 	time_last integer not null,
@@ -157,9 +172,9 @@ create table if not exists {b}_threads (
 	locked boolean not null default false,
 
 	primary key (thread_num)
-);
-
-create table if not exists {b}_images (
+);''')
+	if 'images' in filter_tables:
+		parts.append(f'''create table if not exists "{b}_images" (
 	media_id serial not null,
 	media_hash character varying(25) not null,
 	media character varying(25),
@@ -170,9 +185,9 @@ create table if not exists {b}_images (
 
 	primary key (media_id),
 	unique (media_hash)
-);
-
-create table if not exists {b}_users (
+);''')
+	if 'users' in filter_tables:
+		parts.append(f'''create table if not exists "{b}_users" (
 	user_id serial not null,
 	name character varying(100) not null default '',
 	trip character varying(25) not null default '',
@@ -181,9 +196,9 @@ create table if not exists {b}_users (
 
 	primary key (user_id),
 	unique (name, trip)
-);
-
-create table if not exists {b}_daily (
+);''')
+	if 'daily' in filter_tables:
+		parts.append(f'''create table if not exists "{b}_daily" (
 	day integer not null,
 	posts integer not null,
 	images integer not null,
@@ -193,9 +208,9 @@ create table if not exists {b}_daily (
 	names integer not null,
 
 	primary key (day)
-);
-
-create table if not exists {b}_deleted (
-	like {b} including all
-);
-'''
+);''')
+	if 'deleted' in filter_tables:
+		parts.append(f'''create table if not exists "{b}_deleted" (
+	like "{b}" including all
+);''')
+	return '\n\n'.join(parts)

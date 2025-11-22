@@ -27,17 +27,40 @@ async def aggregate_posts(board: str, after_doc_id: int=0):
 		row_processor.process_rows(row_batch)
 	return row_processor
 
-async def populate_single_thread(boards: list[str]):
+def normalize_side_table_names(side_tables: list[str]) -> list[str]:
+	normalized = []
+	for st in side_tables:
+		st = st.lstrip('_')
+		if st == 'images' or st == 'media':
+			normalized.append('images')
+		elif st == 'threads':
+			normalized.append('threads')
+		elif st in ('users', 'daily', 'deleted'):
+			print(f'Warning: Side table "{st}" cannot be populated, only threads and images are supported')
+	return normalized
+
+async def populate_single_thread(boards: list[str], side_tables: list[str] | None = None):
 	if not boards:
 		return
+	
+	if side_tables is None:
+		side_tables = ['threads', 'images']
+	
+	normalized_tables = normalize_side_table_names(side_tables)
+	if not normalized_tables:
+		print('No valid side tables specified')
+		return
+	
 	for board in boards:
-		print('Populating:', board)
+		print('Populating:', board, 'side tables:', ', '.join(normalized_tables))
 
 		rp = await aggregate_posts(board)
 		threads, medias = rp.threads, rp.medias
 
-		for row_batch in tqdm(thread_row_gen(threads), desc=f'insert threads', total=batch_total(threads, BATCH_THREADS)):
-			await insert_sidetable_fresh(SideTable.threads, thread_columns, board, row_batch)
+		if 'threads' in normalized_tables:
+			for row_batch in tqdm(thread_row_gen(threads), desc=f'insert threads', total=batch_total(threads, BATCH_THREADS)):
+				await insert_sidetable_fresh(SideTable.threads, thread_columns, board, row_batch)
 		
-		for row_batch in tqdm(media_row_gen(medias), desc=f'insert medias', total=batch_total(medias, BATCH_IMAGES)):
-			await insert_sidetable_fresh(SideTable.media, media_columns, board, row_batch)
+		if 'images' in normalized_tables:
+			for row_batch in tqdm(media_row_gen(medias), desc=f'insert medias', total=batch_total(medias, BATCH_IMAGES)):
+				await insert_sidetable_fresh(SideTable.media, media_columns, board, row_batch)

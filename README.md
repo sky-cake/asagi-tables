@@ -26,6 +26,8 @@ uv add asagi-tables --optional mysql
 
 ### Available commands
 - `BOARD` is one or more boards
+- For side table operations, `--only` can specify which tables to operate on (default: all side tables: `threads`, `images`, `users`, `daily`, `deleted`)
+- For `populate`, only `threads` and `images` are supported (default: both)
 ```sh
 asagi base table add BOARD
 asagi base table drop BOARD
@@ -36,11 +38,11 @@ asagi base index add BOARD
 asagi base index drop BOARD
 asagi base trigger add BOARD
 asagi base trigger drop BOARD
-asagi side table add BOARD
-asagi side table drop BOARD
-asagi side table backup BOARD
-asagi side table restore BOARD
-asagi side table populate BOARD
+asagi side table add BOARD [--only threads|images|users|daily|deleted]
+asagi side table drop BOARD [--only threads|images|users|daily|deleted]
+asagi side table backup BOARD [--only threads|images|users|daily|deleted]
+asagi side table restore BOARD [--only threads|images|users|daily|deleted]
+asagi side table populate BOARD [--only threads|images]
 asagi side index add BOARD
 asagi side index drop BOARD
 ```
