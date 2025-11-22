@@ -44,3 +44,27 @@ rm -rf dist build .pytest_cache .ruff_cache src/*.egg-info
 fd -I __pycache__ . -x rm -r # fd installed
 find . -type d -name __pycache__ -exec rm -r {} + # fd not installed
 ```
+
+## Running Tests
+
+To run the test suite, first install the development dependencies:
+
+```bash
+# From the project root directory (where pyproject.toml is located)
+pip install -e ".[dev]"
+# or with uv
+uv pip install -e ".[dev]"
+```
+
+Then run pytest:
+
+```bash
+# From the project root directory
+# Run all tests
+pytest -v
+
+# Run a specific test file
+pytest tests/test_queries.py
+```
+
+The project's `pyproject.toml` is configured to automatically set the Python path to `src/`, so tests can be run from the project root without additional setup.
