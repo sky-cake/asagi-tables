@@ -3,16 +3,7 @@ from asagi_tables.queries.templates import (
 	get_template,
 	render_template,
 )
-
-def normalize_side_tables(side_tables: list[str]) -> set[str]:
-	normalized = set()
-	for st in side_tables:
-		st = st.lstrip('_')
-		if st == 'media':
-			normalized.add('images')
-		elif st in ('threads', 'images', 'users', 'daily', 'deleted'):
-			normalized.add(st)
-	return normalized
+from asagi_tables.main import normalize_side_tables
 
 def get_args():
 	import sys
@@ -72,8 +63,9 @@ def test_normalize_side_tables_mixed():
 	assert result == {'threads', 'images', 'users'}
 
 def test_normalize_side_tables_invalid():
-	result = normalize_side_tables(['invalid', 'threads'])
-	assert result == {'threads'}
+	import pytest
+	with pytest.raises(ValueError, match='Invalid side table'):
+		normalize_side_tables(['invalid', 'threads'])
 
 def test_normalize_side_tables_empty():
 	result = normalize_side_tables([])

@@ -16,8 +16,12 @@ from .queries.templates import (
 populate_action = 'table_populate'
 
 def normalize_side_tables(side_tables: list[str]) -> set[str]:
+	valid_tables = {'threads', 'images', 'users', 'daily', 'deleted', 'media'}
 	normalized = set()
+	invalid_tables = []
+	
 	for st in side_tables:
+		original_st = st
 		st = st.lstrip('_')
 
 		# media is handled as an alias for images (because SideTable.media = 'images' in the enum)
@@ -25,16 +29,27 @@ def normalize_side_tables(side_tables: list[str]) -> set[str]:
 			normalized.add('images')
 		elif st in ('threads', 'images', 'users', 'daily', 'deleted'):
 			normalized.add(st)
+		else:
+			invalid_tables.append(original_st)
+	
+	if invalid_tables:
+		valid_list = ', '.join(sorted(valid_tables))
+		raise ValueError(
+			f'Invalid side table(s): {", ".join(invalid_tables)}. '
+			f'Valid side tables are: {valid_list}'
+		)
+	
 	return normalized
 
 async def execute_action(table_type: str, action: str, boards: list[str], side_tables: list[str] | None = None):
+	filter_tables = None
+	if table_type == 'side' and side_tables:
+		# Validate and normalize side tables for all side table commands
+		filter_tables = normalize_side_tables(side_tables)
+	
 	if table_type == 'side' and action == populate_action:
 		await populate_single_thread(boards, side_tables)
 		return
-	
-	filter_tables = None
-	if table_type == 'side' and side_tables:
-		filter_tables = normalize_side_tables(side_tables)
 	
 	if not (template := get_template(db_type, table_type, action, filter_tables)):
 		print(f'Empty template for {table_type} {action} {db_type}')
