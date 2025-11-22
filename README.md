@@ -1,26 +1,9 @@
 # Asagi Tables
-- Python cli/lib to manage [Asagi schema](https://github.com/bibanon/asagi_schema) tables
-- Supports mysql/mariadb, sqlite and postgresql(untested)
 
-## Install
-- Requires Python 3.12+
-```bash
-# from git
-pip install "asagi-tables[sqlite] @ git+https://github.com/bibanon/asagi-tables.git"
-pip install "asagi-tables[mysql] @ git+https://github.com/bibanon/asagi-tables.git@master"
+- Python cli to manage [Asagi schema](https://github.com/bibanon/asagi_schema) tables
+- Supports mysql/mariadb, sqlite and postgresql. Postgresql has not been tested.
 
-# from release wheel
-version="0.1.0"
-pip install "asagi-tables[postgresql] @ https://github.com/bibanon/asagi-tables/releases/download/v$version/asagi_tables-$version-py3-none-any.whl"
-
-# with uv
-uv add git+https://github.com/bibanon/asagi-tables.git
-uv add asagi-tables --optional mysql
-```
-
-## Running Without Installation
-
-To run the CLI without installing via pip, you can use Python's module execution:
+To run the CLI, you can use Python's module execution:
 
 ```bash
 # From the src directory
@@ -29,15 +12,7 @@ python -m asagi_tables base table add BOARD
 python -m asagi_tables side table add BOARD --only threads images
 ```
 
-Alternatively, you can set the `PYTHONPATH` environment variable:
-
-```bash
-# From the project root directory
-export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
-python -m asagi_tables base table add BOARD
-```
-
-**Note:** The `asagi.toml` config file will be automatically found if it's in either your current working directory or the project root directory. When running from the project root, you can place `asagi.toml` there for convenience.
+**Note:** The `asagi.toml` config file will be automatically found if it's in either your current working directory or the project root directory.
 
 ## Running Tests
 
