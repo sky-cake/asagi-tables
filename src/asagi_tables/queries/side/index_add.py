@@ -10,8 +10,8 @@ def st(table: str):
 
 def mysql_t(table: str, ti: TI):
 	unique = ' unique' if ti.unique else ''
-	columns = ', '.join(f'`{col}`' for col in ti.colummns)
-	return f'alter table {qi(st(table))} add{unique} index {ti.name} ({columns});'
+	index_name = qi(f'{b}_{table}_{ti.name}')
+	return f'create{unique} index if not exists {index_name} on {qi(st(table))} ({columns});'
 
 def mysql(*args) -> str:
 	return map_join_index(mysql_t)
